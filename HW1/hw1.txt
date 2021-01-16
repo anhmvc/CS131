@@ -1,0 +1,10 @@
+For the set operations functions, I utilized my mathematical knowledge of set operations and hints from the TA-given pseudocode and discussion slides.
+The hardest part of the assignment was learning the syntax of Ocaml and getting familiar with the logic behind functional programming.
+My approach for the filter_reachable function:
+1. Filter ruleset to return a set of rules that start with given Start nonterminal
+2. Use this filtered ruleset to recursively get all reachable nonterminals by looking at the right-hand side of each rule
+3. Recursively repeat Step 1 until I have processed all reachable nonterminals
+4. Filter reachableRules from the original rules 
+
+It was difficult to come up with a recursive solution for this problem, since I am more familiar with using loops to solve similar problems.
+Nonetheless, the recursive solution that I implemented uses a similar logic as graph-traversal DFS algorithm when processing starting nonterminals.
