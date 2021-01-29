@@ -1,0 +1,57 @@
+I implemented make_parser in terms of make_matcher as the two functions
+ultimately use a similar mechanism to parse a fragment using an acceptor.
+However, they are different in the following ways:
+    1. make_parser returns a parse tree data structure from parsing a fragment
+    using the specified grammar whereas make_matcher only returns a matcher
+    for the fragment.
+    2. the acceptor passed into make_parser requires the fragment to be parsed
+    entirely and does not accept an empty suffix
+
+The original make_matcher function did not need to keep track of the path of
+the traversal, and it would accept any general acceptor. The make_matcher
+function is implemented using two mutually-recursive functions where the first
+function match_rules recursively find a subset of rules that start with the
+same nonterminal which then calls match_current_rule to recursively iterate
+through each rule in our current rules sublist and find the next level until
+we reach our base case, which is an empty list [], then run the fragment with
+the acceptor to see whether it accepts the fragment or that we would have to
+backtrack to the previous level to look at the next rule. The key important
+part of these 2 mutually recursive functions is that when we find a match, we
+have to call the function with a new acceptor using currying to chain our 
+current acceptor with the other symbols in our current rule. If we fail to do
+this, the function would only match with the first symbol and disregard the 
+rest.
+
+To modify my original make_matcher functions to satisfy the specified
+conditions above, I had to add another argument path to my make_matcher auxilary
+functions that is similar to an accumulator to keep track of the paths of
+Node's and Leaf's in order for the program to build the parse tree. I also had 
+to define a parser_acceptor that ensures that our parser does not accept 
+non-empty suffix so that our fragment is fully parsed; else, if there is a 
+non-empty suffix in our fragment at the end of make_parser, we would return 
+None since the fragment was not parsed entirely. 
+
+The main weaknesses of my make_matcher and make_parser solution is that the
+parser is left-associated, so the order of our grammar rules matter. The 
+function will always match the first rule that it encounters first, so if a
+fragment matches two different rules, it will only recursively call the first
+match found. For instance, in my make_matcher_test, when calling make_matcher
+with ["Jungkook"; "sings"; "beautifully"], the matcher will return 
+Some ["beautifully"] as the shorter rule (VerbPhrase -> [N Verb]) is defined
+before the longer rule (VerbPhrase -> [N Adverb; N Verb]). Thus, the matcher 
+will not match and return a non-empty suffix when we have an Adverb at the end of the sentence. Instead of finding the best or longest match for the fragment, 
+both the matcher and parser will find the first match. 
+
+Another weakness is since the parser and matcher evaluates our grammar rules 
+from left to right, the parser might enter an infinite loop when evaluating the
+fragment. For example, if we have a rule (A, A -> [[N A; T"Left"];[T"Right"]])
+and fragment ["Right";"Left"], the parser will fail to find a match as it will
+always visit the rule [N A; T"Left"] first and recursively try to find the next
+rule that starts with A, making it fails to see the rule [T"Right"] which would
+have returned a match. Considering this, if the matcher and parser were
+implemented from right to left, then it would not have entered the infinite 
+loop and be able to find a match for our fragment since it would look at 
+[T"Right] first, then [N A; T"Left"]. The only way to eliminate this problem is
+to remove our left-recursive grammar or rewrite our parser and matcher to 
+follow the rules from right to left, but this would still limit the scope of
+our function for right-recursive grammar.
