@@ -39,7 +39,8 @@ match found. For instance, in my make_matcher_test, when calling make_matcher
 with ["Jungkook"; "sings"; "beautifully"], the matcher will return 
 Some ["beautifully"] as the shorter rule (VerbPhrase -> [N Verb]) is defined
 before the longer rule (VerbPhrase -> [N Adverb; N Verb]). Thus, the matcher 
-will not match and return a non-empty suffix when we have an Adverb at the end of the sentence. Instead of finding the best or longest match for the fragment, 
+will not match and return a non-empty suffix when we have an Adverb at the end
+of the sentence. Instead of finding the best or longest match for the fragment, 
 both the matcher and parser will find the first match. 
 
 Another weakness is since the parser and matcher evaluates our grammar rules 
