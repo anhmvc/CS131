@@ -1,0 +1,232 @@
+Part 2. KenKen vs Plain KenKen Performance Test Results:
+
+Test Case:
+* computing all possible results of the following kenken puzzle provided in 
+the spec.
+
+kenken(
+  4,
+  [
+   +(6, [[1|1], [1|2], [2|1]]),
+   *(96, [[1|3], [1|4], [2|2], [2|3], [2|4]]),
+   -(1, [3|1], [3|2]),
+   -(1, [4|1], [4|2]),
+   +(8, [[3|3], [4|3], [4|4]]),
+   *(2, [[3|4]])
+  ],
+  T
+), write(T), nl, fail.
+
+cpu_time measured using statistics(cpu_time, [SinceStart, SinceLast]).
+
+                         cpu_time
+kenken                     2ms
+plain_kenken              3592ms
+
+Plain Kenken have much worse performance compared to Kenken implemented with
+FSD with a 3590ms difference. Moreover, Plain Kenken took much longer to run 
+on an 6x6 example, which is why I decided to run the performance test with a 
+smaller 4x4 example to demonstrate that it can still produce accurate results,
+but with longer runtime.
+
+Queries log during testing:
+//-------- KENKEN --------//
+?- statistics(cpu_time, [SinceStart, SinceLast]).
+SinceLast = 11
+SinceStart = 18
+
+yes
+?- four_kenken_testcase(N,C), kenken(N,C,T), write(T), nl, fail.
+[[1,2,3,4],[3,4,2,1],[4,3,1,2],[2,1,4,3]]
+[[1,2,4,3],[3,4,2,1],[4,3,1,2],[2,1,3,4]]
+[[3,2,4,1],[1,4,2,3],[4,3,1,2],[2,1,3,4]]
+[[2,1,3,4],[3,4,2,1],[4,3,1,2],[1,2,4,3]]
+[[2,1,4,3],[3,4,2,1],[4,3,1,2],[1,2,3,4]]
+[[3,1,2,4],[2,4,3,1],[4,3,1,2],[1,2,4,3]]
+
+no
+?- statistics(cpu_time, [SinceStart, SinceLast]).
+SinceLast = 2
+SinceStart = 20
+
+yes
+
+//-------- PLAIN KENKEN --------//
+?- statistics(cpu_time, [SinceStart, SinceLast]).
+SinceLast = 2
+SinceStart = 20
+
+yes
+?- four_kenken_testcase(N,C), plain_kenken(N,C,T), write(T), nl, fail.
+[[1,2,3,4],[3,4,2,1],[4,3,1,2],[2,1,4,3]]
+[[1,2,4,3],[3,4,2,1],[4,3,1,2],[2,1,3,4]]
+[[2,1,3,4],[3,4,2,1],[4,3,1,2],[1,2,4,3]]
+[[2,1,4,3],[3,4,2,1],[4,3,1,2],[1,2,3,4]]
+[[3,1,2,4],[2,4,3,1],[4,3,1,2],[1,2,4,3]]
+[[3,2,4,1],[1,4,2,3],[4,3,1,2],[2,1,3,4]]
+
+(3578 ms) no
+?- statistics(cpu_time, [SinceStart, SinceLast]).
+
+SinceLast = 3592
+SinceStart = 3612
+
+yes
+
+Part 3. No-Op KenKen
+
+Using our original KenKen solver, we can leave most of the implementation
+unchanged. This includes the initializing matrix and labeling matrix part
+of the code.
+
+noop_kenken(N, C, T) :-
+    length(T, N),
+    check_row(T, N),
+    transpose(T, R),
+    check_row(R, N),
+    check_constraints(T, C),
+    label(T).
+
+where check_row(T,N) checks that each row satisfies the 3 conditions:
+    1. Length of row = N
+    2. Elements in row ranges from [1,..,N], inclusive
+    3. All elements are different/unique
+
+check_row(R,N) checks that each column also satisfies the conditions above
+by transposing the matrix and applying the check_row constraints on each
+row in the transposed matrix.
+
+label finds the solution of the puzzle after ensuring that each condition
+is satisfied.
+
+As the No-Op KenKen problem is a more generalized version of our original
+KenKen solver, we need to fixes the constraints so that it would check
+these conditions. As from before, add/multiply works on a List of Indices
+and subtract/divide works on two elements.
+
+To generalize subtract/divide so that it would also work on a List of Indices,
+we have to define a predicate that check only for these two operations when
+the list have two elements.
+
+Previous constraints:
+constraint(T, +(S, L)) :-
+    get_sum(T, L, S).
+
+constraint(T, *(P, L)) :-
+    get_product(T, L, P).
+
+constraint(T, -(D, A, B)) :-
+    get(T, A, X),
+    get(T, B, Y),
+    (D #= X - Y ; D #= Y - X). 
+
+constraint(T, /(Q, A, B)) :-
+    get(T, A, X),
+    get(T, B, Y),
+    (Q #= X/Y; Q #= Y/X). 
+
+I will need to abstract the operations in our subtract/divide operations into
+similar format as get_sum/3 and get_product/3 by implementing get_difference/3 and
+get_quotient/3 by only evaluating the expression if the list have exactly two
+elements.
+
+get_difference(T, D, A, B) :-
+    get(T, A, X),
+    get(T, B, Y),
+    (D #= X - Y ; D #= Y - X).
+
+get_quotient(T, Q, A, B) :-
+    get(T, A, X),
+    get(T, B, Y),
+    (Q #= X/Y; Q #= Y/X). 
+
+Then, combining our specialized constraints into generalized constraint
+constraint/2 predicates as follows:
+
+constraint(T, (Goal, [A, B])) :-
+    get_difference(T, Goal, A, B);
+    get_quotient(T, Goal, A, B).
+constraint(T, (Goal, List)) :-
+    get_sum(T, L, S);
+    get_product(T, L, S).
+
+From here, our solver will check all of the possible operations if the List condition
+matches our patterns specified in our constraint/2 predicates. We can still keep our
+previous constraints with operation specified if there were any additional information
+given to us (i.e. No-Op Puzzle 1 provides that the sum of the entries on the main
+diagonal is 10). We can use still account for this as with the specialized constraint
+from our regular KenKen solver.
+
+Output of our trivial example remains unchanged.
+?- kenken(1,[],T).
+
+T = [[1]]?
+
+yes
+
+?- kenken(2,[],T).
+
+T = [[1,2],[2,1]] ? ;
+T = [[2,1],[1,2]] ? ;
+
+no
+
+and so on.
+
+Using examples from the set of provided no-op puzzles: 
+noop_kenken_testcase(
+    5,
+    [
+        (2, [[1|1]]),
+        (38, [[1|2], [1|3], [1|4], [2|2], [3|2], [3|3], [3|4], [4|4], [5|2], 
+        [5|3], [5|4]]),
+        (6, [[2|1], [3|1]]),
+        (6, [[4|1], [4|2]]),
+        (4, [[5|1]]),
+        (1, [[4|3]]),
+        (24, [[1|5], [2|3], [2|4], [2|5]]),
+        (9, [[3|5], [4|5], [5|5]])
+    ]
+).
+
+When query with:
+?- fd_set_vector_max(255), noop_kenken_testcase(N,C), noop_kenken(N,C,T).
+
+should output to:
+C = [2+[[1|1]],38+[[1|2],[1|3],[1|4],[2|2],[3|2],[3|3],[3|4],
+    [4|4],[5|2],[5|3],[5|4]],6+[[2|1],[3|1]],6*[[4|1],[4|2]],
+    4+[[5|1]],1+[[4|3]],24*[[1|5],[2|3],[2|4],[2|5]],
+    9+[[3|5],[4|5],[5|5]]]
+N = 5
+T = [[2,1,5,3,4],
+     [5,4,3,1,2],
+     [1,5,4,2,3],
+     [3,2,1,4,5],
+     [4,3,2,5,1]] ? ;
+
+no
+
+NOTE: the output was found by solving the test case with ops specified using
+our original KenKen solver.
+The example is the first puzzle on pg 1 of the example of no-op provided.
+
+Another test case that have one operation specified in the
+conditions:
+noop_kenken_testcase2(
+    5,
+    [
+        (10, [[1|1], [1|2]]),
+        (10, [[1|3], [1|4], [1|5], [2|5]]),
+        (10, [[2|1], [3|1], [3|2]]),
+        (10, [[2|2], [2|3], [2|4]]),
+        (10, [[3|3], [3|4], [3|5]]),
+        (10, [[4|1], [4|2], [5|1]]),
+        (10, [[4|3], [5|2], [5|3], [5|4]]),
+        (10, [[4|4], [4|5], [5|5]]),
+       +(10, [[1|1], [2|2], [3|3], [4|4], [5|5]])
+    ]
+).
+
+This test case can also be query with the same API as regular KenKen.
+
+Sources: https://webpages.uncc.edu/~hbreiter/DavidsonInstitute/D2Day3.pdf.
