@@ -21,7 +21,7 @@ NEIGHBORS = {
     "Bernard": ["Juzang", "Jaquez", "Campbell"],
 }
 
-API_KEY = "AIzaSyDJZaTZyr3ic3jeWuwzElb7oqtkTgUgVAU"
+API_KEY = "GOOGLE_API_KEY"
 
 if len(sys.argv) != 2:
     sys.exit("ERROR: Invalid arguments. Correct usage: python3 server.py [SERVER_ID]")
